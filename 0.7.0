@@ -1,0 +1,8 @@
+Looking in indexes: https://pypi.org/simple, https://pypi.ngc.nvidia.com
+Requirement already satisfied: textstat in c:\users\padmanabh\.conda\envs\torch_env\lib\site-packages (0.7.8)
+Requirement already satisfied: pyphen in c:\users\padmanabh\.conda\envs\torch_env\lib\site-packages (from textstat) (0.17.2)
+Requirement already satisfied: cmudict in c:\users\padmanabh\.conda\envs\torch_env\lib\site-packages (from textstat) (1.1.1)
+Requirement already satisfied: setuptools in c:\users\padmanabh\appdata\roaming\python\python312\site-packages (from textstat) (75.1.0)
+Requirement already satisfied: importlib-metadata>=5 in c:\users\padmanabh\.conda\envs\torch_env\lib\site-packages (from cmudict->textstat) (8.6.1)
+Requirement already satisfied: importlib-resources>=5 in c:\users\padmanabh\.conda\envs\torch_env\lib\site-packages (from cmudict->textstat) (6.5.2)
+Requirement already satisfied: zipp>=3.20 in c:\users\padmanabh\.conda\envs\torch_env\lib\site-packages (from importlib-metadata>=5->cmudict->textstat) (3.21.0)
