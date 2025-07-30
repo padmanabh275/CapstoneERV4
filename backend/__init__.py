@@ -1,0 +1,1 @@
+# Backend package for AI-Assisted Content Creation Platform 
