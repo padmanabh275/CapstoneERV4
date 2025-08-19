@@ -1,10 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authAPI } from '../services/api';
-import toast from 'react-hot-toast';
 
 interface User {
-  id: number;
+  id: string;
   email: string;
   username: string;
   full_name: string;
@@ -17,27 +15,12 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (userData: RegisterData) => Promise<void>;
+  register: (email: string, username: string, password: string, fullName: string) => Promise<void>;
   logout: () => void;
-  updateProfile: (data: Partial<User>) => Promise<void>;
-}
-
-interface RegisterData {
-  email: string;
-  username: string;
-  password: string;
-  full_name: string;
+  updateProfile: (data: any) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -48,80 +31,113 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Check if user is already authenticated on app load
+  // Check if user is already logged in (from localStorage)
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      authAPI.setAuthToken(token);
-      authAPI.getCurrentUser()
-        .then((userData) => {
-          setUser(userData);
-        })
-        .catch(() => {
-          localStorage.removeItem('token');
-          authAPI.removeAuthToken();
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
+    const token = localStorage.getItem('authToken');
+    const userData = localStorage.getItem('userData');
+    
+    if (token && userData) {
+      try {
+        setUser(JSON.parse(userData));
+      } catch (error) {
+        console.error('Failed to parse user data:', error);
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+      }
     }
+    setLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      setLoading(true);
-      const { access_token, user: userData } = await authAPI.login(email, password);
-      
-      localStorage.setItem('token', access_token);
-      authAPI.setAuthToken(access_token);
-      setUser(userData);
-      
-      toast.success('Successfully logged in!');
-      navigate('/dashboard');
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Login failed');
+      const response = await fetch('http://localhost:8000/api/v1/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Login failed');
+      }
+
+      const data = await response.json();
+      localStorage.setItem('authToken', data.access_token);
+      localStorage.setItem('userData', JSON.stringify(data.user));
+      setUser(data.user);
+    } catch (error) {
+      console.error('Login error:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
-  const register = async (userData: RegisterData) => {
+  const register = async (email: string, username: string, password: string, fullName: string) => {
     try {
-      setLoading(true);
-      const { access_token, user: newUser } = await authAPI.register(userData);
-      
-      localStorage.setItem('token', access_token);
-      authAPI.setAuthToken(access_token);
-      setUser(newUser);
-      
-      toast.success('Account created successfully!');
-      navigate('/dashboard');
+      const response = await fetch('http://localhost:8000/api/v1/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, username, password, full_name: fullName }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        
+        // Extract error messages from the response
+        if (errorData.detail) {
+          if (Array.isArray(errorData.detail)) {
+            const messages = errorData.detail.map((detail: any) => detail.msg || detail.message || detail).join(', ');
+            throw new Error(messages);
+          } else {
+            throw new Error(errorData.detail.msg || errorData.detail.message || errorData.detail);
+          }
+        } else {
+          throw new Error('Registration failed');
+        }
+      }
+
+      const data = await response.json();
+      localStorage.setItem('authToken', data.access_token);
+      localStorage.setItem('userData', JSON.stringify(data.user));
+      setUser(data.user);
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Registration failed');
+      console.error('Registration error:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    authAPI.removeAuthToken();
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
     setUser(null);
-    toast.success('Logged out successfully');
     navigate('/login');
   };
 
-  const updateProfile = async (data: Partial<User>) => {
+  const updateProfile = async (data: any) => {
     try {
-      const updatedUser = await authAPI.updateProfile(data);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('http://localhost:8000/api/v1/auth/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Profile update failed');
+      }
+
+      const updatedUser = await response.json();
       setUser(updatedUser);
-      toast.success('Profile updated successfully!');
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to update profile');
+      localStorage.setItem('userData', JSON.stringify(updatedUser));
+    } catch (error) {
+      console.error('Profile update error:', error);
       throw error;
     }
   };
@@ -141,4 +157,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-}; 
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
