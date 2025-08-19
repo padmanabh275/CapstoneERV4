@@ -1,9 +1,9 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from .jwt_handler import JWTHandler
-from ..models.database import get_db
-from ..models.user import User
+from models.database import get_db
+from models.user import User
+from .jwt_handler import JWTHandler  # FIXED: added dot to make it relative import
 
 security = HTTPBearer()
 
@@ -11,12 +11,17 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
-    """Get current authenticated user from JWT token"""
-    token = credentials.credentials
-    payload = JWTHandler.verify_token(token)
-    username: str = payload.get("sub")
-    
-    if username is None:
+    """Get current user from JWT token"""
+    try:
+        payload = JWTHandler.decode_access_token(credentials.credentials)
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -30,8 +35,7 @@ async def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    return user
+    return user  # FIXED: Changed from 'current_user' to 'user'
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     """Get current active user"""

@@ -3,10 +3,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
-# Database configuration - Use SQLite by default
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./content_platform.db")
+# Database configuration
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ai_content_platform.db")
 
-# Create SQLAlchemy engine
+# Create engine
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
@@ -15,11 +15,11 @@ engine = create_engine(
 # Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Create Base class for models
+# Create Base class
 Base = declarative_base()
 
-# Dependency to get database session
 def get_db():
+    """Dependency to get database session"""
     db = SessionLocal()
     try:
         yield db
